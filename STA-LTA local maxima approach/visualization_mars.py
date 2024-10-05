@@ -138,6 +138,4 @@ def main():
     return trace_times_filt[local_maxima[selected_maxima]], cft[local_maxima[selected_maxima]]
 
 if __name__ == "__main__":
-    maxima_times, maxima_values = main()
-    print("Selected maxima times:", maxima_times)
-    print("Selected maxima values:", maxima_values)
+    main()
