@@ -1,13 +1,12 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from obspy import read
 from obspy.signal.trigger import classic_sta_lta
 import os
 
 def get_data_regions(times, selected_maxima, cft, window_before=300, window_after=600):
     cft_values = cft[selected_maxima]
-    total_sum = np.sum(np.abs(cft_values))
+    cft_max = np.max(np.abs(cft_values))
     
     regions = []
     for idx, value in zip(selected_maxima, cft_values):
@@ -24,7 +23,7 @@ def get_data_regions(times, selected_maxima, cft, window_before=300, window_afte
             merged_regions[-1] = (merged_regions[-1][0], max(merged_regions[-1][1], region[1]),
                                   merged_regions[-1][2] + region[2])  # Sum the data values
         
-    return merged_regions, total_sum
+    return merged_regions, cft_max
 
 def find_local_maxima(data):
     return np.where((data[1:-1] > data[:-2]) & (data[1:-1] > data[2:]))[0] + 1
