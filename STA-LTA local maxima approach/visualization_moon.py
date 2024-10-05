@@ -26,14 +26,14 @@ def plot_earthquake_regions(ax, times, selected_maxima, cft_values, total_sum, w
                          facecolor='lightgray', edgecolor='red', alpha=0.5, zorder=1, linewidth=1)
         ax.add_patch(rect)
         relative_value = value/total_sum
-        label = f'{relative_value*100:.2f}% chance this is an earthquake'
+        label = f'{relative_value*100:.2f}% chance this is a moon/marsquake'
         ax.text(end+500, ax.get_ylim()[0], label,
                 horizontalalignment='center', verticalalignment='bottom', rotation=90, fontsize=6,
                 color='red')
         
     return merged_regions
 
-def plot_vels(trace_data_filt, trace_times_filt, selected_maxima, cft, filename):
+def plot_vels(trace_data_filt, trace_times_filt, selected_maxima, cft):
     fig, ax = plt.subplots(1, 1, figsize=(12, 3))
     ax.plot(trace_times_filt, trace_data_filt, label='Filtered Data', alpha = 0.25)
     
@@ -96,22 +96,22 @@ def select_top_maxima(times, values, n_maxima, time_range):
         if len(selected_indices) == n_maxima:
             break
         if not selected_indices or all(abs(times[idx] - times[i]) > time_range for i in selected_indices):
-            selected_indices.append(idx)
+                selected_indices.append(idx)
     return np.sort(selected_indices)
 
 def main():
     # Load data
-    row = 39
-    cat = pd.read_csv('space_apps_2024_seismic_detection/data/lunar/training/catalogs/apollo12_catalog_GradeA_final.csv')  # Assuming the catalog is in a CSV file
-    filename = cat['filename'].iloc[row]
-    file = f'space_apps_2024_seismic_detection/data/lunar/training/data/S12_GradeA/{filename}.mseed'
+    # row = 75
+    # cat = pd.read_csv('space_apps_2024_seismic_detection/data/lunar/training/catalogs/apollo12_catalog_GradeA_final.csv')  # Assuming the catalog is in a CSV file
+    # filename = cat['filename'].iloc[row]
+    # file = f'space_apps_2024_seismic_detection/data/lunar/training/data/S12_GradeA/{filename}.mseed'
     
-    # file = 'space_apps_2024_seismic_detection/data/lunar/test/data/S16_GradeA/xa.s16.00.mhz.1974-11-11HR00_evid00160.mseed'
+    file = 'space_apps_2024_seismic_detection/data/mars/test/data/XB.ELYSE.02.BHV.2019-05-23HR02_evid0041.mseed'
     
     stream = read(file)
 
     # Filter trace
-    minfreq, maxfreq = 0.5, 1.0
+    minfreq, maxfreq = 0.1, 1
     stream_filt = stream.copy()
     stream_filt.filter('bandpass', freqmin=minfreq, freqmax=maxfreq)
     trace_filt = stream_filt.traces[0].copy()
@@ -122,18 +122,18 @@ def main():
     df = trace_filt.stats.sampling_rate
     sta_len, lta_len = 100, 1500
     cft = classic_sta_lta(trace_data_filt, int(sta_len * df), int(lta_len * df))
-
+    
     # Find local maxima
     local_maxima = find_local_maxima(cft)
 
     # Select top N maxima
-    n_maxima = 10  # Number of maxima to select
-    time_range = 200  # Time range in seconds
+    n_maxima = 300  # Number of maxima to select
+    time_range = 1  # Time range in seconds
     selected_maxima = select_top_maxima(trace_times_filt[local_maxima], cft[local_maxima], n_maxima, time_range)
 
     # Plot results
     plot_cft(trace_times_filt, cft, local_maxima[selected_maxima])
-    plot_vels(trace_data_filt, trace_times_filt, local_maxima[selected_maxima], cft, filename)
+    plot_vels(trace_data_filt, trace_times_filt, local_maxima[selected_maxima], cft)
 
     return trace_times_filt[local_maxima[selected_maxima]], cft[local_maxima[selected_maxima]]
 
