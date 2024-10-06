@@ -107,7 +107,7 @@ def main():
     file = f'{input_directory}{filename}.mseed'
 
     # For all other miniseed files
-    file = input_file
+    # file = input_file
     
     stream = read(file)
 
