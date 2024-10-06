@@ -97,13 +97,14 @@ def select_top_maxima(times, values, n_maxima, time_range):
     return np.sort(selected_indices)
 
 def main():
-    # Load data
-    row = 47
-    cat = pd.read_csv('space_apps_2024_seismic_detection/data/lunar/training/catalogs/apollo12_catalog_GradeA_final.csv')  # Assuming the catalog is in a CSV file
+    # For training miniseed files
+    row = i
+    cat = pd.read_csv(catalog_file)  # Assuming the catalog is in a CSV file
     filename = cat['filename'].iloc[row]
-    file = f'space_apps_2024_seismic_detection/data/lunar/training/data/S12_GradeA/{filename}.mseed'
-    
-    # file = 'space_apps_2024_seismic_detection/data/lunar/test/data/S15_GradeB/xa.s15.00.mhz.1974-08-04HR00_evid00557.mseed'
+    file = f'{input_directory}{filename}.mseed'
+
+    # For all other miniseed files
+    #file = input_file
     
     stream = read(file)
 
