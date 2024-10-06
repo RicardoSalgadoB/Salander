@@ -57,7 +57,7 @@ def plot_results(time, data, peaks, predictions, anomalies):
 
 # Read the CSV file
 # Assuming your CSV has columns named 'time' and 'velocity'
-df = pd.read_csv('/Users/sebastian/Downloads/space_apps_2024_seismic_detection/data/lunar/training/data/S12_GradeA/xa.s12.00.mhz.1975-06-26HR00_evid00198.csv')
+df = pd.read_csv(csv_file)
     
  # Ensure the data is sorted by time
 df = df.sort_values('time_rel(sec)')
