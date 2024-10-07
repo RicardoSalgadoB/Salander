@@ -1,16 +1,15 @@
+import csv
 import os
 # Correct the paths with either double backslashes or raw string literals
 c = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\bin"
 a = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\lib"
 b = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\include"
 gstreamerPath = r"C:\gstreamer\1.0\msvc_x86_64\bin"
-
 # Adding the required directories to the DLL search path
 os.add_dll_directory(gstreamerPath)
 os.add_dll_directory(c)
 os.add_dll_directory(a)
 os.add_dll_directory(b)
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -26,7 +25,7 @@ from ultralytics import YOLO
 cat_file = './data/lunar/training/catalogs/apollo12_catalog_GradeA_final.csv'
 cat_file = os.path.join(r"D:\Space Aps\space_apps_2024_seismic_detection\space_apps_2024_seismic_detection", cat_file)
 cat = pd.read_csv(cat_file)
-
+arrival_time_for_training = []
 
 for row in range(1, len(cat)):
     filename = cat['filename'].iloc[row]
@@ -144,6 +143,7 @@ for row in range(1, len(cat)):
                     
                     # Añadir una línea vertical para marcar el tiempo de llegada relativo (arrival time)
                     ax.axvline(x=arrival, color='red', linestyle='--', label='Tiempo de llegada Real')
+                    arrival_time_for_training.append(arrival)
                     ax.axvline(x=time_at_xmin-time_offset, color='green', linestyle='-', label='Tiempo de llegada modelado')
 
                     # Configurar etiquetas y leyenda
@@ -184,3 +184,8 @@ for row in range(1, len(cat)):
         cv2.imwrite(output_with_detections, spectrogram_image)
         print(f"Espectrograma con detecciones guardado en: {output_with_detections}")
 
+with open('numeros.csv', mode='w', newline='') as file:
+    writer = csv.writer(file)
+    
+    # Si solo deseas añadir una fila con los números
+    writer.writerow(arrival_time_for_training)
