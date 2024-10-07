@@ -10,7 +10,6 @@ os.add_dll_directory(gstreamerPath)
 os.add_dll_directory(c)
 os.add_dll_directory(a)
 os.add_dll_directory(b)
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -21,7 +20,6 @@ from scipy import signal
 from matplotlib import cm
 import cv2
 from ultralytics import YOLO
-
 # Ruta al archivo CSV
 cat_file = './data/lunar/training/catalogs/apollo12_catalog_GradeA_final.csv'
 cat_file = os.path.join(r"D:\Space Aps\space_apps_2024_seismic_detection\space_apps_2024_seismic_detection", cat_file)
@@ -101,23 +99,11 @@ else:
         for box in boxes:
             # Extraer coordenadas (formato xyxy)
             xmin, ymin, xmax, ymax = box.xyxy[0].cpu().numpy().astype(int)
-            # Convertir coordenada x a tiempo relativo en el espectrograma
-            #spectrogram_width = spectrogram_image.shape[1]  # Ancho en píxeles
-            #time_range = t[-1] - t[0]  # Duración total del espectrograma en segundos
-            #time_at_xmin = t[0] + (xmin / spectrogram_width) * time_range
-            #time_at_xmax = t[0] + (xmax / spectrogram_width) * time_range
-
-            # Imprimir el tiempo en que ocurre la detección
-            #print(f"Detección en el espectrograma entre t={time_at_xmin:.2f}s y t={time_at_xmax:.2f}s")
-
-            # Coordenadas del espectrograma en la imagen (sin contar márgenes)
+            
             x_start = 125  # Inicio del espectrograma (en píxeles)
             x_end = 900    # Fin del espectrograma (en píxeles)
 
-            # Ancho del espectrograma útil (sin los márgenes)
             spectrogram_active_width = x_end - x_start
-
-            # Duración total del espectrograma en segundos (t[-1] es el tiempo final, t[0] es el tiempo inicial)
             time_range = t[-1] - t[0]
 
             # Convertir las coordenadas del bounding box a tiempo relativo

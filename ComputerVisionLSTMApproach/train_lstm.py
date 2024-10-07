@@ -1,152 +1,114 @@
-import os
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler, LabelEncoder
-from sklearn.model_selection import train_test_split
 import tensorflow as tf
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential # type: ignore
 from tensorflow.keras.layers import LSTM, Dense, Dropout # type: ignore
 
-# Ruta al archivo CSV
-cat_file = r"D:\Space Aps\space_apps_2024_seismic_detection\space_apps_2024_seismic_detection\data\lunar\training\catalogs\apollo12_catalog_GradeA_final.csv"
-data_folder = r"C:\Users\Luciano\Downloads\Spectogram0.0.v1i.yolov8\CSV_LTSM"
+# Configuración para utilizar GPU
+physical_devices = tf.config.list_physical_devices('GPU')
+if physical_devices:
+    tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-def load_and_preprocess_data(data_folder, cat_file):
-    data_list = []
-    
-    # Cargar el catálogo
-    cat = pd.read_csv(cat_file, skiprows=[21, 43, 55])
-    
-    # Inicializar un escalador
-    scaler = MinMaxScaler()
-    label_encoder = LabelEncoder()  # Para convertir las etiquetas a numéricas
+# Cargar los índices de inicio de las ondas desde numeros.csv
+indices_inicios = pd.read_csv("numeros.csv", header=None).values.flatten()  # Asume que hay una columna sin encabezado
 
-    for idx in range(len(cat)):
-        filename = f"deteciones_row_{idx + 1}.csv"
-        label = cat.iloc[idx, 4]  # Obtener la etiqueta de la quinta columna
-        filepath = os.path.join(data_folder, filename)
-        
-        if os.path.exists(filepath):
-            try:
-                df = pd.read_csv(filepath)
-                
-                # Normalizar los datos
-                df['Velocidad (m/s)'] = scaler.fit_transform(df[['Velocidad (m/s)']])
-                
-                # Guardar datos y etiqueta en un diccionario
-                data_list.append({'data': df[['Tiempo (s)', 'Velocidad (m/s)']].values, 'label': label})
-            except Exception as e:
-                print(f"Error al cargar el archivo {filename}: {e}")
+# Inicializa listas para los datos combinados
+todos_tiempos = []
+todos_velocidades = []
+etiquetas = []
+
+# Iterar sobre los archivos de datos
+for i in range(1,len(indices_inicios)):  # Asume que hay una cantidad de archivos CSV igual al número de índices
+    archivo_csv = f"deteciones_row_{i}.csv"  # Cambia esto según tu nomenclatura de archivos
+    try:
+        print(f"Intentando cargar el archivo: {archivo_csv}")  # Imprimir el archivo que se está intentando cargar
+        data = pd.read_csv(archivo_csv)
+
+        tiempo = data['Tiempo (s)'].values
+        velocidad = data['Velocidad (m/s)'].values
+
+        # Escalar las velocidades
+        scaler = MinMaxScaler()
+        velocidad = scaler.fit_transform(velocidad.reshape(-1, 1))
+
+        # Agregar datos a las listas
+        todos_tiempos.extend(tiempo)
+        todos_velocidades.extend(velocidad.flatten())  # Aplanar el arreglo
+
+        # Etiquetar según el índice de inicio de la onda
+        etiqueta = np.zeros(len(velocidad))
+
+        # Convertir a entero y verificar el rango
+        indice_inicio = int(indices_inicios[i-1])  # Asegurarte de que sea un entero
+        print(f"Índice de inicio para el archivo {i-1}: {indice_inicio}")  # Imprimir el índice de inicio
+
+        if 0 <= indice_inicio < len(etiqueta):  # Verifica que esté dentro de los límites
+            print(f"Marcando la etiqueta desde el índice {indice_inicio} hasta el final.")  # Imprimir el rango que se marcará
+            etiqueta[indice_inicio:] = 1
         else:
-            print(f"Archivo no encontrado: {filepath}")
+            print(f"Índice de inicio {indice_inicio} fuera de rango para el archivo {archivo_csv}.")  # Avisar si el índice está fuera de rango
 
-    # Convertir las etiquetas a numéricas
-    labels = [entry['label'] for entry in data_list]
-    encoded_labels = label_encoder.fit_transform(labels)  # Convertir etiquetas a numéricas
-    
-    for idx, entry in enumerate(data_list):
-        entry['label'] = encoded_labels[idx]  # Asignar etiqueta codificada
-    
-    return data_list
+        etiquetas.extend(etiqueta)
 
-def prepare_data(data_list, time_steps=10):
+    except FileNotFoundError:
+        print(f"Archivo no encontrado: {archivo_csv}. Se salta este archivo.")
+        continue  # Pasar al siguiente archivo si no se encuentra
+    except Exception as e:
+        print(f"Ocurrió un error al procesar el archivo {archivo_csv}: {e}")  # Imprimir cualquier otro error
+
+
+
+
+
+# Convertir a arrays de numpy
+todos_tiempos = np.array(todos_tiempos)
+todos_velocidades = np.array(todos_velocidades).reshape(-1, 1)
+etiquetas = np.array(etiquetas)
+
+# Escalar los datos de velocidad
+scaler = MinMaxScaler()
+todos_velocidades = scaler.fit_transform(todos_velocidades)
+
+# Definir el número de pasos de tiempo
+time_steps = 10  
+
+# Crear las secuencias
+def crear_secuencias(velocidad, etiquetas, time_steps):
     X, y = [], []
-    
-    for entry in data_list:
-        data = entry['data']  # Datos de tiempo y velocidad
-        label = entry['label']  # Etiqueta
-        
-        # Crear secuencias
-        for i in range(len(data) - time_steps):
-            X.append(data[i:i + time_steps])  # Secuencia de datos
-            y.append(label)  # Etiqueta correspondiente
-        
+    for i in range(len(velocidad) - time_steps):
+        X.append(velocidad[i:i + time_steps])
+        y.append(etiquetas[i + time_steps])
     return np.array(X), np.array(y)
 
-# Cargar y preprocesar los datos
-data_list = load_and_preprocess_data(data_folder, cat_file)
+X, y = crear_secuencias(todos_velocidades, etiquetas, time_steps)
 
-# Preparar los datos para LSTM
-time_steps = 10  # Número de pasos temporales
-X, y = prepare_data(data_list, time_steps)
-
-# Dividir los datos en conjuntos de entrenamiento y prueba
+# Dividir en conjuntos de entrenamiento y prueba
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Crear el modelo LSTM
+# Construir el modelo LSTM
 model = Sequential()
 model.add(LSTM(50, activation='relu', return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
-model.add(Dropout(0.2))  # Regularización para evitar overfitting
+model.add(Dropout(0.2))
 model.add(LSTM(50, activation='relu'))
 model.add(Dropout(0.2))
-model.add(Dense(1))  # Salida (ajustar según tu caso)
+model.add(Dense(1, activation='sigmoid'))
 
 # Compilar el modelo
-model.compile(optimizer='adam', loss='mse')  # Usa 'categorical_crossentropy' si es clasificación
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
 # Entrenar el modelo
-history = model.fit(X_train, y_train, epochs=10, batch_size=32, validation_split=0.2)
+history = model.fit(X_train, y_train, epochs=25, batch_size=32, validation_split=0.2)
 
 # Evaluar el modelo
-loss = model.evaluate(X_test, y_test)
-print(f'Loss: {loss}')
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f"Precisión en el conjunto de prueba: {accuracy * 100:.2f}%")
 
-model.save("LSTM Trained.h5")
+# Guardar el modelo
+model.save("LSTM.h5")
 
-# Hacer predicciones
-predictions = model.predict(X_test)
-
-# Opcional: Imprimir las primeras 5 predicciones
-print(predictions[:5])
-
-
-
-
-
-"""
-def load_and_preprocess_data(data_folder, cat_file):
-    data = []
-    labels = []
-    
-    # Cargar el catálogo omitiendo líneas problemáticas
-    cat = pd.read_csv(cat_file, skiprows=[21, 43, 55])
-    
-    # Inicializar un escalador
-    scaler = MinMaxScaler()
-
-    for idx in range(len(cat)):
-        filename = f"deteciones_row_{idx + 1}.csv"
-        label = cat.iloc[idx, 4]  # Obtener la etiqueta de la quinta columna
-        filepath = os.path.join(data_folder, filename)
-        
-        if os.path.exists(filepath):
-            try:
-                df = pd.read_csv(filepath)
-                
-                # Normalizar los datos
-                df['Velocidad (m/s)'] = scaler.fit_transform(df[['Velocidad (m/s)']])
-                
-                # Agregar todos los datos y etiquetas a las listas
-                data.append(df[['Tiempo (s)', 'Velocidad (m/s)']].values)  # Guardar todos los valores de tiempo y velocidad
-                labels.append(label)  # Guardar la etiqueta correspondiente
-            except Exception as e:
-                print(f"Error al cargar el archivo {filename}: {e}")
-        else:
-            print(f"Archivo no encontrado: {filepath}")
-
-    # Convertir listas a arrays de numpy
-    data = np.concatenate(data) if data else np.array([])  # Concatenar todos los arrays de datos
-    labels = np.array(labels)
-
-    return data, labels
-
-
-# Cargar los datos
-data, labels = load_and_preprocess_data(data_folder, cat_file)
-
-print(data)
-print(labels)
-print("Data length", len(data))
-print("labels", len(labels))
-
-"""
+# Realizar predicciones
+predicciones = model.predict(X_test)
+for i in range(5):
+    print(f"Predicción: {predicciones[i]}, Valor real: {y_test[i]}")
